@@ -1,5 +1,6 @@
 #!/bin/bash
 # Thin shim — actual flow is in lib/benchmark-common.sh.
-export BENCH_DOWNLOAD_SCRIPT="download-hits-parquet-partitioned"
+export BENCH_DOWNLOAD_SCRIPT=""
 export BENCH_DURABLE=yes
+export BENCH_CONCURRENT_DURATION=1
 exec ../lib/benchmark-common.sh

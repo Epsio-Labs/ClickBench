@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+clickhouse-client --query "DROP TABLE IF EXISTS hits"
 clickhouse-client < create.sql
 
 # Symlink the parquet files into ClickHouse's user_files dir rather than
@@ -12,9 +13,9 @@ clickhouse-client < create.sql
 for f in hits_*.parquet; do
     sudo ln -sf "$PWD/$f" /var/lib/clickhouse/user_files/"$f"
 done
-sudo chown -h clickhouse:clickhouse /var/lib/clickhouse/user_files/hits_*.parquet
+sudo bash -c 'chown -h clickhouse:clickhouse /var/lib/clickhouse/user_files/hits_*.parquet'
 
 clickhouse-client --query "INSERT INTO hits SELECT * FROM file('hits_*.parquet')" --max-insert-threads "$(( $(nproc) / 4 ))"
 
-sudo rm -f /var/lib/clickhouse/user_files/hits_*.parquet
+sudo bash -c 'rm -f /var/lib/clickhouse/user_files/hits_*.parquet'
 sync
