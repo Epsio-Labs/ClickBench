@@ -1,0 +1,11 @@
+{
+  "system": "pivotdb",
+  "proprietary": "yes",
+  "hardware": "cpu",
+  "tuned": "no",
+  "tags": [
+    "Rust",
+    "column-oriented",
+    "server"
+  ]
+}

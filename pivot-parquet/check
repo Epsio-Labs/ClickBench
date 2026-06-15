@@ -1,0 +1,4 @@
+#!/bin/bash
+set -e
+export LC_ALL=C.UTF-8
+psql -h 127.0.0.1 -p "$PIVOT_PORT" -U postgres -d postgres -tAc "SELECT 1" >/dev/null

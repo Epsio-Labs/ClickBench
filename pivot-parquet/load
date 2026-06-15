@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+export LC_ALL=C.UTF-8
+# Bind the `hits` table to the parquet source. Persists into --path; restarts
+# reload it. Tolerate "already exists" if a prior run's catalog persisted.
+sed "s|{source}|$PIVOT_SOURCE|g" create.sql \
+  | psql -h 127.0.0.1 -p "$PIVOT_PORT" -U postgres -d postgres -f - 2>&1 \
+  | grep -viE 'already exists|^CREATE TABLE$' || true

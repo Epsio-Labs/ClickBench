@@ -1,0 +1,11 @@
+#!/bin/bash
+# Reads one SQL query from stdin, runs it against the pivot server via psql.
+# Stdout: result. Stderr last line: query runtime in fractional seconds.
+export LC_ALL=C.UTF-8
+sql=$(cat)
+out=$(psql -h 127.0.0.1 -p "$PIVOT_PORT" -U postgres -d postgres -q \
+        -v ON_ERROR_STOP=1 -c '\timing on' -c "$sql" 2>&1)
+rc=$?
+printf '%s\n' "$out" | grep -v '^Time:' || true
+printf '%s\n' "$out" | awk '/^Time:/{t=$2} END{ if(t!="") printf "%.6f\n", t/1000 > "/dev/stderr" }'
+exit $rc

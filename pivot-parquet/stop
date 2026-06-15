@@ -1,0 +1,4 @@
+#!/bin/bash
+export LC_ALL=C.UTF-8
+# bracket avoids self-match; key on the bind port so we only kill our server.
+pkill -9 -f "[p]ivotdb-server --bind 127.0.0.1:$PIVOT_PORT" 2>/dev/null || true

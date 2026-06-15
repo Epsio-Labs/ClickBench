@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+export LC_ALL=C.UTF-8 LANG=C.UTF-8
+source "$HOME/.cargo/env"; export PATH="/usr/local/bin:$PATH"
+cd "$HOME/pivotdb/benchmarks"
+# PGO profile on the small subset (skill convention); reuse if present.
+if [ ! -f /tmp/benchmarks-pgo/merged.profdata ]; then
+  just pgo-clean
+  just pgo-gen run --release -- --source "$HOME/bench-data/single" --iterations 2 --skip-check
+fi
+# Build the standalone server with PGO into target-pgouse (reuses bench cache).
+just pgo-use build --release -p server --bin pivotdb-server
