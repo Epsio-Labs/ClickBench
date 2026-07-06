@@ -3,5 +3,5 @@ set -e
 export LC_ALL=C.UTF-8
 BIN="$HOME/pivotdb/benchmarks/target-pgouse/release/pivotdb-server"
 mkdir -p "$PIVOT_CATALOG"
-nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG" --compact-bytes 0 \
+nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG" \
     > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
