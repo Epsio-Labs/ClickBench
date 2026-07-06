@@ -1,7 +1,12 @@
 #!/bin/bash
 set -e
 export LC_ALL=C.UTF-8
-BIN="$HOME/pivotdb/benchmarks/target-pgouse/release/pivotdb-server"
+# A/B and multi-build callers set PIVOT_SERVER_BIN to time a specific build;
+# otherwise fall back to the in-tree PGO server.
+BIN="${PIVOT_SERVER_BIN:-$HOME/pivotdb/benchmarks/target-pgouse/release/pivotdb-server}"
 mkdir -p "$PIVOT_CATALOG"
-nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG" --compact-bytes 0 \
+# Compaction is off by default; the benchmark reads a static parquet, so we want
+# no background compacter. (--compact-bytes now requires --compact, so passing it
+# alone is rejected — just omit both.)
+nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG" \
     > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
