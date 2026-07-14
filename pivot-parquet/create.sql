@@ -11,7 +11,7 @@ CREATE TABLE hits (
     Title VARCHAR,
     GoodEvent SMALLINT,
     EventTime BIGINT,
-    EventDate SMALLINT,
+    EventDate USMALLINT,
     CounterID INTEGER,
     ClientIP INTEGER,
     RegionID INTEGER,
