@@ -8,5 +8,24 @@ mkdir -p "$PIVOT_CATALOG"
 # Compaction is off by default; the benchmark reads a static parquet, so we want
 # no background compacter. (--compact-bytes now requires --compact, so passing it
 # alone is rejected — just omit both.)
-nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG" \
+#
+# Point the server at $PIVOT_CATALOG using whichever flag this build accepts.
+# Older builds take `--path <dir>`. Newer ones dropped it and require
+# `--metastore <file>`, a TOML naming that same directory. An A/B run times two
+# commits that can straddle the change, so probe `--help` rather than hard-code
+# either flag: that would leave one of the two sides unable to start.
+if "$BIN" --help 2>&1 | grep -q -- '--metastore'; then
+    METASTORE="/tmp/pivot-metastore-$PIVOT_PORT.toml"
+    # A single datastore, marked default, so unqualified names resolve to it.
+    cat > "$METASTORE" <<EOF
+[datastore.default]
+kind = "delta"
+location = "$PIVOT_CATALOG"
+default = true
+EOF
+    STORE_ARGS=(--metastore "$METASTORE")
+else
+    STORE_ARGS=(--path "$PIVOT_CATALOG")
+fi
+nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" "${STORE_ARGS[@]}" \
     > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
