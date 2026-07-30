@@ -3,5 +3,21 @@ set -e
 export LC_ALL=C.UTF-8
 BIN="$HOME/pivotdb/benchmarks/target-pgouse/release/pivotdb-server"
 mkdir -p "$PIVOT_CATALOG"
-nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG" \
+# Point the server at $PIVOT_CATALOG using whichever flag this build accepts.
+# Older builds take `--path <dir>`. Newer ones dropped it and require
+# `--metastore <file>`, a TOML naming that same directory.
+if "$BIN" --help 2>&1 | grep -q -- '--metastore'; then
+    METASTORE="/tmp/pivot-metastore-$PIVOT_PORT.toml"
+    # A single datastore, marked default, so unqualified names resolve to it.
+    cat > "$METASTORE" <<EOF
+[datastore.default]
+kind = "delta"
+location = "$PIVOT_CATALOG"
+default = true
+EOF
+    STORE_ARGS=(--metastore "$METASTORE")
+else
+    STORE_ARGS=(--path "$PIVOT_CATALOG")
+fi
+nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" "${STORE_ARGS[@]}" \
     > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
