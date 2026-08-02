@@ -10,11 +10,29 @@ mkdir -p "$PIVOT_CATALOG"
 # alone is rejected — just omit both.)
 #
 # Point the server at $PIVOT_CATALOG using whichever flag this build accepts.
-# Older builds take `--path <dir>`. Newer ones dropped it and require
-# `--metastore <file>`, a TOML naming that same directory. An A/B run times two
-# commits that can straddle the change, so probe `--help` rather than hard-code
-# either flag: that would leave one of the two sides unable to start.
-if "$BIN" --help 2>&1 | grep -q -- '--metastore'; then
+# Oldest builds take `--path <dir>`. Newer ones dropped it and require
+# `--metastore <file>` naming that same directory, first in TOML and later in
+# YAML. An A/B run times two commits that can straddle either change, so probe
+# `--help` rather than hard-code one: that would leave one side unable to start.
+if "$BIN" --help 2>&1 | grep -q 'Metastore file (YAML)'; then
+    METASTORE="/tmp/pivot-metastore-$PIVOT_PORT.yaml"
+    # A single datastore, marked default, so unqualified names resolve to it.
+    # `users` is an allowlist once present, and this adapter's psql calls
+    # connect as `postgres`, so that name is the one defined here. Trust asks
+    # for no password, which is what the non-interactive psql calls need.
+    cat > "$METASTORE" <<EOF
+datastores:
+  default:
+    kind: delta
+    location: $PIVOT_CATALOG
+    default: true
+users:
+  postgres:
+    auth:
+      method: trust
+EOF
+    STORE_ARGS=(--metastore "$METASTORE")
+elif "$BIN" --help 2>&1 | grep -q -- '--metastore'; then
     METASTORE="/tmp/pivot-metastore-$PIVOT_PORT.toml"
     # A single datastore, marked default, so unqualified names resolve to it.
     cat > "$METASTORE" <<EOF
