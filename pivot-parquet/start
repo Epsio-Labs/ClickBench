@@ -6,20 +6,42 @@ export LC_ALL=C.UTF-8
 BIN="${PIVOT_SERVER_BIN:-$HOME/pivotdb/benchmarks/target-pgouse/release/pivotdb-server}"
 mkdir -p "$PIVOT_CATALOG"
 # Compaction is off by default; the benchmark reads a static parquet, so we want
-# no background compacter. (--compact-bytes now requires --compact, so passing it
-# alone is rejected — just omit both.)
+# no background compacter.
 #
-# Point the server at $PIVOT_CATALOG using whichever flag this build accepts.
-# Oldest builds take `--path <dir>`. Newer ones dropped it and require
-# `--metastore <file>` naming that same directory, first in TOML and later in
-# YAML. An A/B run times two commits that can straddle either change, so probe
+# Point the server at $PIVOT_CATALOG the way this build expects. The flags moved
+# three times: oldest builds take `--path <dir>`; then `--metastore <file>`
+# naming that same directory, first in TOML and later in YAML; newest builds
+# take one `--config <file>` that holds a `server` section (where the bind
+# address moved to, so `--bind` is gone) and the metastore nested beside it. An
+# A/B run times two commits that can straddle any of those changes, so probe
 # `--help` rather than hard-code one: that would leave one side unable to start.
-if "$BIN" --help 2>&1 | grep -q 'Metastore file (YAML)'; then
+# Match a flag as a whole word, or a build carrying an unrelated `--otel-config`
+# would read as a `--config` build.
+HELP="$("$BIN" --help 2>&1)"
+# A single datastore, marked default, so unqualified names resolve to it.
+# `users` is an allowlist once present, and this adapter's psql calls connect as
+# `postgres`, so that name is the one defined here. Trust asks for no password,
+# which is what the non-interactive psql calls need. Memory and worker budgets
+# are left unset so both sides take the same machine-derived defaults.
+if grep -qE '(^|[[:space:]])--config([[:space:]]|=|$)' <<<"$HELP"; then
+    CONFIG="/tmp/pivot-config-$PIVOT_PORT.yaml"
+    cat > "$CONFIG" <<EOF
+server:
+  bind: 127.0.0.1:$PIVOT_PORT
+metastore:
+  datastores:
+    default:
+      kind: delta
+      location: $PIVOT_CATALOG
+      default: true
+  users:
+    postgres:
+      auth:
+        method: trust
+EOF
+    ARGS=(--config "$CONFIG")
+elif grep -q 'Metastore file (YAML)' <<<"$HELP"; then
     METASTORE="/tmp/pivot-metastore-$PIVOT_PORT.yaml"
-    # A single datastore, marked default, so unqualified names resolve to it.
-    # `users` is an allowlist once present, and this adapter's psql calls
-    # connect as `postgres`, so that name is the one defined here. Trust asks
-    # for no password, which is what the non-interactive psql calls need.
     cat > "$METASTORE" <<EOF
 datastores:
   default:
@@ -31,19 +53,17 @@ users:
     auth:
       method: trust
 EOF
-    STORE_ARGS=(--metastore "$METASTORE")
-elif "$BIN" --help 2>&1 | grep -q -- '--metastore'; then
+    ARGS=(--bind "127.0.0.1:$PIVOT_PORT" --metastore "$METASTORE")
+elif grep -qE '(^|[[:space:]])--metastore([[:space:]]|=|$)' <<<"$HELP"; then
     METASTORE="/tmp/pivot-metastore-$PIVOT_PORT.toml"
-    # A single datastore, marked default, so unqualified names resolve to it.
     cat > "$METASTORE" <<EOF
 [datastore.default]
 kind = "delta"
 location = "$PIVOT_CATALOG"
 default = true
 EOF
-    STORE_ARGS=(--metastore "$METASTORE")
+    ARGS=(--bind "127.0.0.1:$PIVOT_PORT" --metastore "$METASTORE")
 else
-    STORE_ARGS=(--path "$PIVOT_CATALOG")
+    ARGS=(--bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG")
 fi
-nohup "$BIN" --bind "127.0.0.1:$PIVOT_PORT" "${STORE_ARGS[@]}" \
-    > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
+nohup "$BIN" "${ARGS[@]}" > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
