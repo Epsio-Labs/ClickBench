@@ -114,4 +114,4 @@ CREATE TABLE hits (
     RefererHash BIGINT,
     URLHash BIGINT,
     CLID INTEGER
-) WITH (path = '{source}');
+) WITH (with_pre_existing_parquets = '{source}');
