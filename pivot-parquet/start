@@ -3,8 +3,17 @@ set -e
 export LC_ALL=C.UTF-8
 # A/B and multi-build callers set PIVOT_SERVER_BIN to time a specific build;
 # otherwise fall back to the in-tree PGO server.
-BIN="${PIVOT_SERVER_BIN:-$HOME/pivotdb/benchmarks/target-pgouse/release/pivotdb-server}"
+BIN="${PIVOT_SERVER_BIN:-$HOME/pivotdb/benchmarks/target-pgouse/release/pivot}"
 mkdir -p "$PIVOT_CATALOG"
+# Older builds ship the server as its own `pivotdb-server` executable that takes
+# the server flags directly; newer ones fold it into the `pivot` CLI, where the
+# same flags hang off a `server` subcommand. A bare server rejects `server` as
+# an unexpected argument even with `--help`, so this probe tells the two apart.
+if "$BIN" server --help >/dev/null 2>&1; then
+    SERVER=("$BIN" server)
+else
+    SERVER=("$BIN")
+fi
 # Compaction is off by default; the benchmark reads a static parquet, so we want
 # no background compacter.
 #
@@ -17,7 +26,7 @@ mkdir -p "$PIVOT_CATALOG"
 # `--help` rather than hard-code one: that would leave one side unable to start.
 # Match a flag as a whole word, or a build carrying an unrelated `--otel-config`
 # would read as a `--config` build.
-HELP="$("$BIN" --help 2>&1)"
+HELP="$("${SERVER[@]}" --help 2>&1)"
 # A single datastore, marked default, so unqualified names resolve to it.
 # `users` is an allowlist once present, and this adapter's psql calls connect as
 # `postgres`, so that name is the one defined here. Trust asks for no password,
@@ -66,4 +75,4 @@ EOF
 else
     ARGS=(--bind "127.0.0.1:$PIVOT_PORT" --path "$PIVOT_CATALOG")
 fi
-nohup "$BIN" "${ARGS[@]}" > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
+nohup "${SERVER[@]}" "${ARGS[@]}" > "/tmp/pivot-server-$PIVOT_PORT.log" 2>&1 &
