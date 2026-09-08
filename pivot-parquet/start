@@ -40,7 +40,7 @@ server:
 metastore:
   datastores:
     default:
-      kind: delta
+      kind: pivot
       location: $PIVOT_CATALOG
       default: true
   users:
